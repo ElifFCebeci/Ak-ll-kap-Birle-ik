@@ -1,0 +1,2027 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="utf-8" />
+    <title>KAPI YÖNETİM SİSTEMİ - BİRLEŞİK</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <meta name="google-signin-client_id" content="SENIN_GOOGLE_CLIENT_ID_BURAYA.apps.googleusercontent.com">
+    <script src="https://apis.google.com/js/platform.js" async defer></script>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js"></script>
+
+    <style>
+        /* --- RENKLER & GENEL --- */
+        :root {
+            --neon-green: #39ff14;
+            --neon-blue: #00f3ff;
+            --neon-red: #ff073a;
+            --neon-purple: #bc13fe;
+            --neon-orange: #ff9e00;
+            --dark-bg: rgba(12, 12, 12, 0.9);
+            --card-bg: rgba(20, 20, 30, 0.6);
+            --text-main: #ffffff;
+            --text-muted: #a0a0a0;
+        }
+
+        body{
+            margin:0;
+            font-family: 'Segoe UI', 'Roboto', sans-serif;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.8), rgba(0,0,0,0.9)), url('https://images.unsplash.com/photo-1550751827-4bd374c3f58b?q=80&w=2070&auto=format&fit=crop') center/cover fixed;
+            color:var(--text-main);
+            min-height:100vh;
+        }
+
+        /* --- AUTH (birleştirilmiş görünümler) --- */
+        .auth-wrapper{ position:fixed; top:0; left:0; width:100%; height:100%; display:flex; justify-content:center; align-items:center; z-index:2000; backdrop-filter:blur(10px); background:rgba(0,0,0,0.7); }
+        .auth-container{ width:100%; max-width:420px; padding:36px; background:rgba(20,20,25,0.95); border:1px solid var(--neon-blue); border-radius:14px; box-shadow:0 0 30px rgba(0,243,255,0.12); text-align:center; }
+        input, select { width:100%; padding:12px; margin:10px 0; border-radius:8px; border:1px solid #333; background:#0f0f12; color:white; box-sizing:border-box; }
+        button{ cursor:pointer; padding:12px; border-radius:8px; border:none; font-weight:700; text-transform:uppercase; }
+        .btn-primary{ background:var(--neon-blue); color:#000; border:2px solid var(--neon-blue); }
+        .btn-secondary{ background:#333; color:#fff; }
+        .btn-card-action{ padding:10px; border-radius:8px; border:1px solid var(--neon-blue); background:rgba(0,243,255,0.06); color:var(--neon-blue); display:flex; align-items:center; justify-content:center; gap:8px; }
+        .btn-success { background: var(--neon-green); color: black; border: 2px solid var(--neon-green); }
+        .btn-danger { background: var(--neon-red); color: white; border: 2px solid var(--neon-red); }
+        .link{ color:#aaa; font-size:0.9rem; cursor:pointer; display:inline-block; margin-top:8px; }
+
+        /* --- ANA KUTULAR / DASHBOARD --- */
+        .main-content { max-width:1200px; margin:40px auto; padding:28px; background:var(--dark-bg); border-radius:18px; display:none; border:1px solid rgba(255,255,255,0.06); backdrop-filter: blur(8px); min-height:70vh; }
+        h1{ text-align:center; margin:0 0 20px 0; letter-spacing:1px; }
+        .header-info{ display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:18px; }
+        .dashboard-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:20px; margin-top:10px; }
+        .dash-card{ background:var(--card-bg); padding:30px 20px; border-radius:14px; text-align:center; cursor:pointer; border:1px solid rgba(255,255,255,0.06); }
+        .dash-card i{ font-size:36px; color:var(--neon-blue); margin-bottom:10px; }
+
+        /* --- KAPI KARTLARI, GRUP, MOD vs. --- */
+        .door-list{ display:flex; flex-wrap:wrap; gap:20px; justify-content:center; }
+        .door-card{ width:300px; background:var(--card-bg); padding:18px; border-radius:14px; border:2px solid rgba(255,255,255,0.06); display:flex; flex-direction:column; gap:10px; }
+        .door-header{ display:flex; justify-content:space-between; align-items:center; }
+        .door-name{ font-weight:700; font-size:1.1rem; }
+        .status-icon-container{ font-size:3.2rem; text-align:center; margin:6px 0; }
+        .status-text-big{ text-transform:uppercase; text-align:center; font-weight:700; }
+
+        .settings-panel{ background:rgba(0,0,0,0.28); padding:12px; border-radius:8px; border:1px dashed rgba(255,255,255,0.06); }
+        .sensor-grid{ display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:8px; }
+        .checkbox-item{ display:flex; align-items:center; gap:6px; padding:6px; border-radius:6px; background:rgba(255,255,255,0.03); font-size:0.85rem; }
+
+        /* group styles */
+        .group-dashboard{ display:none; padding:14px; border-radius:12px; margin-top:14px; border:1px solid var(--neon-purple); background:linear-gradient(145deg, rgba(20,20,30,0.9), rgba(0,0,0,0.95)); }
+        .group-panel{ display:flex; gap:18px; flex-wrap:wrap; align-items:flex-start; padding:12px; border-radius:12px; background:rgba(0,0,0,0.18); border:1px solid rgba(255,255,255,0.04); margin-bottom:12px; }
+
+        /* mod state stylings (examples) */
+        .mode-auto { border-color: var(--neon-blue) !important; box-shadow:0 0 12px rgba(0,243,255,0.06); }
+        .mode-manual { border-color: var(--neon-orange) !important; box-shadow:0 0 12px rgba(255,158,0,0.06); }
+        .mode-free { border-color: var(--neon-green) !important; box-shadow:0 0 12px rgba(57,255,20,0.05); }
+        .mode-passive { border-color: var(--neon-red) !important; box-shadow:0 0 12px rgba(255,7,58,0.05); }
+        .mode-test { border-color: var(--neon-purple) !important; box-shadow:0 0 12px rgba(188,19,254,0.05); }
+
+        /* modal */
+        .modal{ display:none; position:fixed; inset:0; z-index:4000; align-items:center; justify-content:center; background:rgba(0,0,0,0.85); backdrop-filter:blur(4px); }
+        .modal-content{ background:#111; border:1px solid var(--neon-blue); padding:20px; border-radius:12px; max-width:900px; width:94%; max-height:80vh; overflow:auto; color:#fff; }
+
+        /* responsive tweaks */
+        @media (max-width:720px){
+            .dashboard-grid{ grid-template-columns:1fr; }
+            .door-card{ width:100%; }
+            .group-split-view{ grid-template-columns:1fr; }
+            .auth-container{ max-width:340px; padding:22px; }
+        }
+    </style>
+</head>
+<body>
+<div id="app-loader" style="position:fixed; top:0; left:0; width:100%; height:100%; background:#0c0c0c; z-index:9999; display:flex; justify-content:center; align-items:center; flex-direction:column;">
+    <div style="width: 50px; height: 50px; border: 5px solid rgba(0, 243, 255, 0.2); border-top: 5px solid #00f3ff; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+    <h3 style="color:#00f3ff; font-family:sans-serif; margin-top:20px; letter-spacing:2px;">YÜKLENİYOR...</h3>
+</div>
+
+<style>
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+</style>
+<div id="panel-login" class="auth-wrapper" style="display:none;">
+    <div class="auth-container">
+        <h2 style="margin-bottom:20px;">GİRİŞ YAP</h2>
+
+        <input type="email" id="login-email" placeholder="E-Posta Adresi" />
+        <input type="password" id="login-password" placeholder="Şifre" />
+
+        <button class="btn-primary" onclick="handleLogin()">GİRİŞ</button>
+
+        <div style="margin-top:15px;">
+            <div class="g-signin2" data-onsuccess="onSignIn" data-theme="dark"></div>
+        </div>
+
+        <span class="link" onclick="switchPanel('forgot')">Şifremi Unuttum?</span>
+        <span class="link" onclick="switchPanel('register')">Hesabın yok mu? Kayıt Ol</span>
+    </div>
+</div>
+
+<div id="panel-register" class="auth-wrapper" style="display:none;">
+    <div class="auth-container">
+        <h2>KAYIT OL</h2>
+
+        <input type="text" id="reg-name" placeholder="Ad" />
+        <input type="text" id="reg-surname" placeholder="Soyad" />
+        <input type="email" id="reg-email" placeholder="E-Posta" />
+        <input type="password" id="reg-pass" placeholder="Şifre" />
+
+        <button class="btn-primary" onclick="handleRegister()">KAYIT OL</button>
+        <button class="btn-secondary" onclick="switchPanel('login')">İPTAL</button>
+    </div>
+</div>
+
+<div id="panel-verify" class="auth-wrapper" style="display:none;">
+    <div class="auth-container">
+        <h2>HESAP DOĞRULAMA</h2>
+        <p style="color:#ccc;">Mailinize gelen 6 haneli kodu girin.</p>
+
+        <input type="text" id="verify-code" placeholder="KOD (123456)" style="text-align:center; letter-spacing:5px;" />
+
+        <button class="btn-primary" onclick="handleVerify()">DOĞRULA</button>
+    </div>
+</div>
+
+<div id="panel-forgot" class="auth-wrapper" style="display:none;">
+    <div class="auth-container">
+        <h2>ŞİFRE SIFIRLAMA</h2>
+
+        <input type="email" id="forgot-email" placeholder="Kayıtlı e-posta adresiniz" />
+
+        <button class="btn-primary" onclick="handleForgot()">KOD GÖNDER</button>
+        <button class="btn-secondary" onclick="switchPanel('login')">VAZGEÇ</button>
+    </div>
+</div>
+
+<div id="panel-reset" class="auth-wrapper" style="display:none;">
+    <div class="auth-container">
+        <h2>YENİ ŞİFRE</h2>
+        <p style="color:#ccc;">Mailinize gelen kodu girin.</p>
+
+        <input type="text" id="reset-code" placeholder="Kod" style="text-align:center;" />
+        <input type="password" id="reset-pass" placeholder="Yeni Şifre" />
+
+        <button class="btn-primary" onclick="handleReset()">ŞİFREYİ DEĞİŞTİR</button>
+    </div>
+</div>
+
+<div id="dashboard-panel" class="main-content" style="display:none;">
+    <div class="header-info">
+        <span id="header-info-dashboard"></span>
+        <div>
+            <button class="btn-danger" onclick="doSignOut()">ÇIKIŞ</button>
+        </div>
+    </div>
+
+    <h1><i class="fas fa-dungeon"></i> SİSTEM KONTROL PANELİ</h1>
+
+    <div class="dashboard-grid">
+        <div class="dash-card" onclick="switchPanel('doors')">
+            <i class="fas fa-door-open"></i>
+            <h3>KAPI YÖNETİMİ</h3>
+            <p>Canlı izleme ve kontrol</p>
+        </div>
+        <div class="dash-card" onclick="switchPanel('groups')">
+            <i class="fas fa-layer-group"></i>
+            <h3>KAPI GRUPLAMA</h3>
+            <p>Bölgeleri Yönet</p>
+        </div>
+        <div class="dash-card" onclick="switchPanel('scheduler')">
+            <i class="fas fa-calendar-alt"></i>
+            <h3>TAKVİMLEME</h3>
+            <p>Otomatik görev planla</p>
+        </div>
+        <div class="dash-card" onclick="switchPanel('maintenance')">
+            <i class="fas fa-tools"></i>
+            <h3>BAKIM KAYITLARI</h3>
+            <p>Arıza ve Rutin Kayıtlar</p>
+        </div>
+    </div>
+</div>
+
+<div id="door-management-panel" class="main-content" style="display:none;">
+    <div class="header-info">
+        <button class="btn-secondary" onclick="switchPanel('dashboard')">MENÜ</button>
+        <span id="header-info-doors"></span>
+    </div>
+
+    <h1><i class="fas fa-door-open"></i> KAPI YÖNETİMİ</h1>
+
+    <div class="group-panel">
+        <h3><i class="fas fa-filter"></i> FİLTRE VE İŞLEM</h3>
+        <div class="group-controls" style="flex:1;">
+            <div style="min-width:150px;">
+                <label style="color:#aaa; font-size:0.8rem;">HEDEF TÜRÜ</label>
+                <select id="mgmt-target-type" onchange="updateMgmtTargetSelect(); updateAllDoorStatuses();">
+                    <option value="all">TÜM TESİS</option>
+                    <option value="group">GRUP SEÇ</option>
+                    <option value="door">KAPI SEÇ</option>
+                </select>
+            </div>
+            <div style="min-width:150px;">
+                <label style="color:#aaa; font-size:0.8rem;">HEDEF SEÇİMİ</label>
+                <select id="mgmt-target-id" onchange="updateAllDoorStatuses()"><option value="all">Tümü</option></select>
+            </div>
+            <div id="report-buttons-area" style="display:none; padding-top:22px;">
+                <button class="btn-report" onclick="downloadHistory('pdf')"><i class="fas fa-file-pdf"></i> GEÇMİŞ PDF</button>
+                <button class="btn-report" onclick="downloadHistory('xml')"><i class="fas fa-file-code"></i> GEÇMİŞ XML</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="group-action-dashboard" class="group-dashboard">
+        <h3 style="color:var(--neon-purple); text-align:center; border-bottom:1px solid rgba(188,19,254,0.2); padding-bottom:10px;">
+            <i class="fas fa-network-wired"></i> GRUP YÖNETİMİ: <span id="selected-group-title" style="color:white;">-</span>
+        </h3>
+
+        <div class="group-split-view">
+            <div>
+                <label style="color:#aaa; font-size:0.8rem;">GRUP ÜYELERİ</label>
+                <div id="group-members-container" class="group-members-list"></div>
+            </div>
+
+            <div class="bulk-control-box">
+                <label style="color:var(--neon-blue); font-weight:bold; display:block; margin-bottom:10px;">TOPLU AYAR PANELİ</label>
+                <select id="grp-bulk-mode-select" onchange="updateGroupBulkSettingsUI()" style="margin-bottom:10px; padding:12px; background:#111; color:white; border:1px solid #444;">
+                    <option value="1">OTOMATİK MOD</option>
+                    <option value="2">MANUEL MOD</option>
+                    <option value="3">SERBEST MOD</option>
+                    <option value="4">PASİF MOD</option>
+                    <option value="5">TEST MODU</option>
+                </select>
+
+                <div id="grp-bulk-dynamic-settings"></div>
+                <button class="btn-apply-group" onclick="applyGroupBulkActionWithSettings()">TOPLU UYGULA</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="door-list" class="door-list" style="margin-top:20px;"></div>
+</div>
+
+<div id="scheduler-panel" class="main-content" style="display:none;">
+    <div class="header-info">
+        <button class="btn-secondary" onclick="switchPanel('dashboard')">MENÜ</button>
+        <span id="header-info-scheduler"></span>
+    </div>
+    <h1><i class="fas fa-calendar-alt"></i> TAKVİMLEME</h1>
+
+    <div style="display:flex; gap:12px; flex-wrap:wrap;">
+        <div style="flex:1; min-width:280px;">
+            <div style="background:var(--card-bg); padding:12px; border-radius:10px;">
+                <label style="color:#aaa; font-size:0.9rem;">HEDEF TÜR</label>
+                <select id="sched-target-type" onchange="updateTargetSelect()"><option value="door">KAPI</option><option value="group">GRUP</option></select>
+                <label style="color:#aaa; font-size:0.9rem; margin-top:8px;">HEDEF</label>
+                <select id="sched-target-id"></select>
+
+                <label style="color:#aaa; font-size:0.9rem; margin-top:8px;">MOD</label>
+                <select id="sched-mode" onchange="updateSchedulerSettingsUI()">
+                    <option value="1">OTOMATİK</option>
+                    <option value="2">MANUEL</option>
+                    <option value="3">SERBEST</option>
+                    <option value="4">PASİF</option>
+                    <option value="5">TEST</option>
+                </select>
+
+                <div id="sched-dynamic-settings" style="margin-top:10px;"></div>
+
+                <label style="color:#aaa; font-size:0.8rem; margin-top:10px;">Tek Sefer mi / Tekrar</label>
+                <select id="sched-recur-type" onchange="toggleRecurrenceUI()">
+                    <option value="none">Tek Sefer</option>
+                    <option value="weekly">Haftalık</option>
+                    <option value="monthly">Aylık</option>
+                </select>
+
+                <div id="sched-standard-dates" style="display:flex; gap:6px; margin-top:8px;">
+                    <input type="datetime-local" id="sched-start" />
+                    <input type="datetime-local" id="sched-end" />
+                </div>
+
+                <div id="sched-recurrence-options" style="display:none; gap:6px; margin-top:8px;">
+                    <select id="sched-recur-day-week">
+                        <option value="1">Pazartesi</option><option value="2">Salı</option><option value="3">Çarşamba</option><option value="4">Perşembe</option>
+                        <option value="5">Cuma</option><option value="6">Cumartesi</option><option value="7">Pazar</option>
+                    </select>
+                    <input id="sched-recur-day-month" type="number" placeholder="Ayın günü (1-31)" />
+                    <input id="sched-time-start" type="time" />
+                    <input id="sched-time-end" type="time" />
+                </div>
+
+                <button class="btn-primary" onclick="addSchedule()" style="margin-top:10px;">Zamanlama Ekle</button>
+            </div>
+        </div>
+
+        <div style="flex:1; min-width:320px;">
+            <div id="schedule-list"></div>
+        </div>
+    </div>
+</div>
+
+<div id="group-management-panel" class="main-content" style="display:none;">
+    <div class="header-info">
+        <button class="btn-secondary" onclick="switchPanel('dashboard')">MENÜ</button>
+        <span id="header-info-groups"></span>
+    </div>
+    <h1><i class="fas fa-layer-group"></i> GRUP YÖNETİMİ</h1>
+
+    <div style="display:flex; gap:12px; flex-wrap:wrap;">
+        <div style="flex:1; min-width:300px;">
+            <div class="group-panel">
+                <div style="flex:1;">
+                    <label style="color:#aaa;">İŞLEM</label>
+                    <select id="group-select-action" onchange="toggleGroupInput()">
+                        <option value="new">Yeni Grup Oluştur</option>
+                    </select>
+                    <div id="new-group-input-container" style="display:block; margin-top:8px;">
+                        <input id="new-group-name" type="text" placeholder="Yeni grup adı" />
+                    </div>
+                    <button id="btn-save-group" class="btn-primary" style="margin-top:8px; width:100%;" onclick="saveGroupChanges()">
+            GRUP OLUŞTUR
+        </button>
+                </div>
+            </div>
+<div id="superadmin-controls" style="display:none; margin-top:15px; margin-bottom:15px; text-align:center;">
+                <button class="btn-primary" onclick="addNewDoorUI()" style="background:var(--neon-red); border:1px solid var(--neon-red); color:white; font-weight:bold; box-shadow: 0 0 10px rgba(255, 7, 58, 0.4); width:100%;">
+                    <i class="fas fa-plus-circle"></i> YENİ KAPI EKLE
+                </button>
+            </div>
+            <div id="group-selection-list" style="margin-top:12px;"></div>
+        </div>
+
+        <div style="flex:1; min-width:320px;">
+            <div id="existing-groups-list"></div>
+        </div>
+    </div>
+</div>
+
+<div id="maintenance-panel" class="main-content" style="display:none;">
+    <div class="header-info">
+        <button class="btn-secondary" onclick="switchPanel('dashboard')">MENÜ</button>
+        <span id="header-info-maintenance"></span>
+    </div>
+    <h1><i class="fas fa-tools"></i> BAKIM KAYITLARI</h1>
+
+    <div id="maintenance-door-list" style="display:flex; gap:12px; flex-wrap:wrap;"></div>
+</div>
+
+<div id="log-modal" class="modal">
+    <div class="modal-content" id="log-content"></div>
+</div>
+<div id="add-door-modal" class="modal">
+    <div class="modal-content" style="max-width: 400px; text-align: center; border: 1px solid var(--neon-red); background: #111;">
+        <h3 style="color: var(--neon-red); margin-top: 0; border-bottom: 1px solid rgba(255, 7, 58, 0.3); padding-bottom: 10px;">
+            <i class="fas fa-plus-circle"></i> YENİ KAPI EKLE
+        </h3>
+        
+        <div style="text-align: left; margin-top: 20px;">
+            <label style="display: block; color: #aaa; font-size: 0.85rem; margin-bottom: 5px;">Kapı İsmi</label>
+            <input type="text" id="new-door-name-input" placeholder="Örn: Depo Girişi" style="width: 100%; padding: 10px; background: #222; border: 1px solid #444; color: white; border-radius: 5px;" />
+
+            <label style="display: block; color: #aaa; font-size: 0.85rem; margin-top: 15px; margin-bottom: 5px;">IP Adresi</label>
+            <input type="text" id="new-door-ip-input" placeholder="Örn: 192.168.1.50" style="width: 100%; padding: 10px; background: #222; border: 1px solid #444; color: white; border-radius: 5px;" />
+        </div>
+
+        <div style="display: flex; gap: 10px; margin-top: 25px;">
+            <button onclick="saveNewDoorFromModal()" style="flex: 1; padding: 12px; background: var(--neon-red); color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;">KAYDET</button>
+            <button onclick="closeAddDoorModal()" style="flex: 1; padding: 12px; background: #333; color: white; border: 1px solid #555; border-radius: 5px; cursor: pointer;">İPTAL</button>
+        </div>
+    </div>
+</div>
+<script>
+    // --- Ortak / global ---
+    const API_BASE_URL = window.location.origin;
+    const DOOR_MODES = {1:'Otomatik Mod',2:'Manuel Mod',3:'Serbest Mod',4:'Pasif Mod',5:'Test Modu'};
+    const AUTH_LEVELS = { 'SuperAdmin':3,'Admin':2,'User':1,'TechnicalStaff':4 };
+    // Varsayılan yetki 0 (TechnicalStaff/Visitor) veya null olmalı
+    let currentRoleID = 0; 
+    let currentUserName = null; // Veri gelene kadar null
+    let currentUserRoleName = null; 
+    let globalDoorsData = []; // Demo veri yok, API'den dolacak
+    let currentSelectedGroup = null;
+    let tempEmail = ''; // kayıt/reset için
+
+    // *** DEĞİŞİKLİK BURADA: localStorage -> sessionStorage ***
+    async function fetchUserData() {
+    try {
+        // Token sessionStorage'dan alınır
+        const token = sessionStorage.getItem('token');
+        // Token yoksa hata fırlat
+        if (!token) throw new Error("No token found");
+
+        const res = await fetch(`${API_BASE_URL}/api/auth/me`, {
+            method: 'GET',
+            headers: { 
+                'Authorization': 'Bearer ' + token 
+            }
+        });
+
+        if (res.ok) {
+            const data = await res.json();
+            currentUserName = data.name;       
+            currentUserRoleName = data.role;    
+            
+            // Rol isminden (örn: 'SuperAdmin') ID'yi (3) buluyoruz
+            currentRoleID = AUTH_LEVELS[data.role] || 0; 
+            
+            updateHeaderInfo(); 
+
+            // --- YENİ EKLENEN KISIM: SUPER ADMIN KONTROLÜ ---
+            const adminPanel = document.getElementById('superadmin-controls');
+            if (adminPanel) {
+                // Eğer ID 3 ise (SuperAdmin) butonu göster, değilse gizle
+                if (currentRoleID === 3) {
+                    adminPanel.style.display = 'block';
+                } else {
+                    adminPanel.style.display = 'none';
+                }
+            }
+            // ------------------------------------------------
+
+        } else {
+            // Token geçersizse login'e at
+            doSignOut();
+        }
+    } catch (err) {
+        console.error("Kullanıcı verisi alınamadı", err);
+        currentRoleID = 0; 
+        doSignOut(); // Token yoksa veya hatalıysa çıkış yap
+    }
+}
+
+    // *** DEĞİŞİKLİK BURADA: localStorage -> sessionStorage ***
+    async function fetchDoorsData() {
+        try {
+            console.log("📡 Sunucudan kapı verileri isteniyor...");
+            
+            const token = sessionStorage.getItem('token');
+            if(!token) return doSignOut();
+
+            const res = await fetch(`${API_BASE_URL}/api/doors/status/all`, {
+                 headers: { 'Authorization': 'Bearer ' + token }
+            });
+            
+            if (!res.ok) {
+                throw new Error(`HTTP Hatası: ${res.status}`);
+            }
+
+            const rawData = await res.json();
+            const doorsArray = rawData.doors || rawData;
+
+            console.log("📦 Sunucudan Gelen Ham Veri:", rawData); 
+
+            if (!Array.isArray(doorsArray)) {
+                console.error("❌ Hata: Sunucu bir dizi (array) döndürmedi!", rawData);
+                return;
+            }
+
+            // --- DÖNÜŞTÜRME İŞLEMİ (MAPPING) ---
+            globalDoorsData = doorsArray.map(d => {
+                return {
+                    DoorID: d.doorid || d.DoorID,
+                    DoorName: d.doorname || d.DoorName || 'İsimsiz Kapı',
+                    GroupName: (d.GroupName && d.GroupName !== 'null') ? d.GroupName : (d.groupname || 'Genel'),
+                    Mode: d.doormodemodeid || d.DoorModeModeID || d.Mode || d.currentmodeid || 1,
+                    Online: (d.heartbeatstatus === true || d.heartbeatstatus === 1 || d.HeartbeatStatus === true || d.onlinedb === true),
+                    OpenSpeed: d.speedopen || d.Speed || d.SpeedOpen || 50,
+                    CloseSpeed: d.speedclose || d.SpeedClose || 50,
+                    WaitTime: d.waittime || d.WaitTime || 5,
+                    Access: d.Access || { EntryFree: true, EntryAuth: true, ExitFree: true, ExitAuth: true },
+                    MaintenanceLogs: d.MaintenanceLogs || [],
+                    ModeLogs: d.ModeLogs || [],
+                    PassiveState: d.PassiveState || 'CLOSED',
+                    TestCycle: d.TestCycle || { OpenTime: 5, CloseTime: 5 }
+                };
+            });
+            
+            console.log("✅ Frontend İçin Hazırlanan Veri:", globalDoorsData);
+            
+            // Veriler artık düzgün, ekranı çizdir
+            updateAllDoorStatuses(); 
+
+        } catch (err) {
+            console.error("❌ Kapı verileri çekilemedi:", err);
+        }
+    }
+        
+    function getLocalISOString(){
+        const now=new Date(); now.setMinutes(now.getMinutes()-now.getTimezoneOffset()); return now.toISOString().slice(0,16);
+    }
+
+    function showIfExists(id, display){
+        const el = document.getElementById(id);
+        if(el) el.style.display = display || 'block';
+    }
+    function hideIfExists(id){
+        const el = document.getElementById(id);
+        if(el) el.style.display = 'none';
+    }
+
+    function switchPanel(panelName) {
+        document.querySelectorAll('.auth-wrapper, .main-content').forEach(el => {
+            el.style.display = 'none';
+        });
+
+        const logModal = document.getElementById('log-modal');
+        if (logModal) logModal.style.display = 'none';
+
+        const authPanels = [
+            "login", "register", "verify", "forgot", "reset"
+        ];
+
+        if (authPanels.includes(panelName)) {
+            const id = `panel-${panelName}`;
+            const target = document.getElementById(id);
+
+            if (target) {
+                target.style.display = "flex";   // 2. arayüz tasarımına uygun
+                return;
+            }
+        }
+
+        if (panelName === 'dashboard') {
+            showIfExists('dashboard-panel', 'block');
+            updateHeaderInfo();
+            fetchDoorsData();
+            return;
+        }
+
+        if (panelName === 'doors') {
+            showIfExists('door-management-panel', 'block');
+            updateHeaderInfo(); 
+            updateMgmtTargetSelect();
+            fetchDoorsData();
+            return;
+        }
+
+        if (panelName === 'scheduler') {
+            showIfExists('scheduler-panel', 'block');
+            updateHeaderInfo();
+            updateTargetSelect();
+            updateSchedulerSettingsUI();
+            const minTime = getLocalISOString();
+            const schedStart = document.getElementById('sched-start');
+            if (schedStart) schedStart.min = minTime;
+            if(globalDoorsData.length === 0) fetchDoorsData();
+            return;
+        }
+
+        if (panelName === 'groups') {
+            showIfExists('group-management-panel', 'block');
+            updateHeaderInfo();
+            fetchDoorsData().then(() => {
+                 renderGroupManagementUI();
+            });
+            return;
+        }
+
+        if (panelName === 'maintenance') {
+            showIfExists('maintenance-panel', 'block');
+            updateHeaderInfo();
+            fetchDoorsData().then(() => {
+                renderMaintenancePanel();
+            });
+            return;
+        }
+
+        if (document.getElementById("panel-login")) {
+            document.getElementById("panel-login").style.display = "flex";
+        }
+    }
+
+
+    function updateHeaderInfo(){
+        const displayName = currentUserName || 'Ziyaretçi';
+        const displayRole = currentUserRoleName || 'Misafir'; 
+
+        const htmlContent = `
+            <span>
+                <i class="fas fa-user-circle"></i> 
+                <strong style="color:var(--neon-blue)">${displayName}</strong>
+            </span>
+            <span style="background:rgba(255,255,255,0.06); padding:6px 10px; border-radius:6px; font-size:0.85rem; margin-left:8px;">
+                ${displayRole}
+            </span>`;
+
+        ['header-info-dashboard','header-info-doors','header-info-scheduler','header-info-groups','header-info-maintenance'].forEach(id => {
+            const el = document.getElementById(id); 
+            if(el) el.innerHTML = htmlContent;
+        });
+    }
+
+    // *** DEĞİŞİKLİK BURADA: localStorage -> sessionStorage ***
+    async function handleLogin(){
+        const email = document.getElementById('login-email').value;
+        const password = document.getElementById('login-password').value;
+        
+        if(!email || !password) return alert("E-posta ve şifre girin.");
+
+        try{
+            const res = await fetch(`${API_BASE_URL}/api/auth/login`, {
+                method: 'POST',  
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password })
+            });
+            
+            const data = await res.json();
+            
+            if(data.status === 'success'){
+                // Token sessionStorage'a kaydediliyor (Tarayıcı kapanınca silinir)
+                if(data.token) {
+                    sessionStorage.setItem('token', data.token);
+                    console.log("✔️ Yeni Token Başarıyla sessionStorage'a kaydedildi.");
+                }
+
+                alert("Giriş Başarılı!");
+
+                if (data.user) {
+                    currentUserName = data.user.name;
+                    currentUserRoleName = data.user.role; 
+                    currentRoleID = AUTH_LEVELS[currentUserRoleName] || 0; 
+
+                    updateHeaderInfo(); // Header'ı güncelle
+                    checkAdminButtonVisibility(); // <--- !!! BU SATIRI EKLEYİN !!!
+                } else {
+                    await fetchUserData(); 
+                }
+
+                switchPanel('dashboard');
+                fetchDoorsData(); 
+
+            } else {
+                alert(data.message || 'Giriş başarısız. Bilgileri kontrol edin.');
+            }
+
+        } catch(err){
+            console.error("❌ Login Hatası:", err); 
+            alert("Sunucuya bağlanılamadı.");
+        }
+    }
+
+    async function handleRegister(){
+        const firstname = document.getElementById('reg-name').value.trim();
+        const surname = document.getElementById('reg-surname').value.trim();
+        const email = document.getElementById('reg-email').value.trim();
+        const password = document.getElementById('reg-pass').value;
+
+        if(!firstname || !surname || !email || !password) {
+            return alert("Lütfen ad, soyad, e-posta ve şifre alanlarını eksiksiz doldurun.");
+        }
+
+        try{
+            const res = await fetch(`${API_BASE_URL}/api/auth/register`, {
+                method: 'POST', 
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ firstname, surname, email, password })
+            });
+            
+            const data = await res.json();
+            
+            if(data.status === 'success'){
+                tempEmail = email; 
+                alert("Kayıt başarılı! E-posta adresinize gelen doğrulama kodunu giriniz.");
+                switchPanel('verify');
+            } else {
+                alert(data.message || 'Kayıt işlemi başarısız oldu.');
+            }
+        } catch(err){ 
+            console.error("Kayıt Hatası:", err); 
+            alert("Sunucuya bağlanılamadı. Lütfen daha sonra tekrar deneyin."); 
+        }
+    }
+
+    async function handleVerify(){
+        const code = document.getElementById('verify-code').value.trim();
+
+        if(!code) return alert("Lütfen doğrulama kodunu giriniz.");
+
+        if(!tempEmail) {
+            alert("Oturum süresi doldu veya sayfa yenilendi. Lütfen tekrar kayıt olun.");
+            switchPanel('register');
+            return;
+        }
+
+        try{
+            const res = await fetch(`${API_BASE_URL}/api/auth/verify`, {
+                method: 'POST', 
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: tempEmail, code })
+            });
+
+            const data = await res.json();
+
+            if(data.status === 'success'){
+                alert("Hesap başarıyla doğrulandı! Giriş yapabilirsiniz.");
+                tempEmail = ''; 
+                switchPanel('login');
+            } else {
+                alert(data.message || 'Doğrulama başarısız. Kodu kontrol edin.');
+            }
+        } catch(err){ 
+            console.error("Verify Hatası:", err); 
+            alert("Sunucuya erişilemedi. Lütfen daha sonra tekrar deneyin."); 
+        }
+    }
+
+    async function handleForgot(){
+        const email = document.getElementById('forgot-email').value;
+        if(!email) return alert("E-posta girin.");
+
+        try{
+            const res = await fetch(`${API_BASE_URL}/api/auth/forgot-password`, {
+                method: 'POST', 
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email })
+            });
+
+            const data = await res.json();
+
+            if(data.status === 'success'){
+                tempEmail = email; 
+                alert("Sıfırlama kodu mailinize gönderildi.");
+                switchPanel('reset');
+            } 
+            else {
+                alert(data.message || 'İşlem başarısız.');
+            }
+        } catch(err){ 
+            console.error("Forgot Password Hatası:", err); 
+            alert("Sunucu hatası."); 
+        }
+    }
+
+    async function handleReset(){
+        const code = document.getElementById('reset-code').value;
+        const newPassword = document.getElementById('reset-pass').value;
+
+        if(!code || !newPassword) return alert("Lütfen kod ve yeni şifre alanlarını doldurun.");
+
+        if (!tempEmail) {
+            alert("Oturum süresi doldu. Lütfen 'Şifremi Unuttum' işlemini baştan başlatın.");
+            switchPanel('forgot'); 
+            return;
+        }
+
+        try{
+            const res = await fetch(`${API_BASE_URL}/api/auth/reset-password`, {
+                method: 'POST', 
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: tempEmail, code, newPassword })
+            });
+
+            const data = await res.json();
+
+            if(data.status === 'success'){
+                alert("Şifreniz başarıyla değiştirildi! Yeni şifrenizle giriş yapabilirsiniz.");
+                tempEmail = ''; 
+                switchPanel('login');
+            } 
+            else {
+                alert(data.message || 'Şifre sıfırlama başarısız. Kodu kontrol edin.');
+            }
+        } catch(err){ 
+            console.error("Reset Password Hatası:", err); 
+            alert("Sunucu hatası."); 
+        }
+    }
+
+    // *** DEĞİŞİKLİK BURADA: localStorage -> sessionStorage ***
+    function onSignIn(googleUser){
+        const id_token = googleUser.getAuthResponse().id_token;
+
+        fetch(`${API_BASE_URL}/api/auth/google`, {
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token: id_token })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if(data.status === 'success'){
+                if(data.token) sessionStorage.setItem('token', data.token);
+
+                currentUserName = data.user?.name || 'Google Kullanıcısı';
+                currentUserRoleName = data.user?.role || 'User';
+                currentRoleID = AUTH_LEVELS[currentUserRoleName] || 0;
+
+                switchPanel('dashboard');
+                fetchDoorsData(); 
+            } else {
+                alert(data.message || 'Google ile giriş yapılamadı.');
+            }
+        })
+        .catch(err => { 
+            console.error("Google Auth Hatası:", err); 
+            alert('Sunucu ile iletişim hatası.'); 
+        });
+    }
+
+    // *** DEĞİŞİKLİK BURADA: localStorage -> sessionStorage ***
+    function doSignOut(){ 
+        sessionStorage.removeItem('token');
+        window.location.reload(); 
+    }
+
+    // Settings panel HTML (PRO fonksiyonu)
+    function getSettingsPanelHTML(door){
+        const mode = parseInt(door.Mode);
+        const id = door.DoorID; 
+
+        // HTML KODUNU STRING OLARAK HAZIRLIYORUZ (Backtick kullanarak)
+        let html = `<div class="settings-panel">`;
+
+        switch(mode){
+            case 1: // OTOMATİK MOD
+                html += `
+                <strong style="display:block; text-align:center; margin-bottom:5px; color:var(--neon-blue);">OTOMATİK AYARLAR</strong>
+                <div style="display:flex; gap:5px;">
+                    <div style="flex:1">
+                        <label style="font-size:0.7rem; color:var(--neon-blue);">Açma Hızı</label>
+                        <input type="number" id="auto-open-${id}" value="${door.OpenSpeed}" min="10" max="100" style="padding:6px;" />
+                    </div>
+                    <div style="flex:1">
+                        <label style="font-size:0.7rem; color:var(--neon-blue);">Kapama Hızı</label>
+                        <input type="number" id="auto-close-${id}" value="${door.CloseSpeed}" min="10" max="100" style="padding:6px;" />
+                    </div>
+                </div>
+                <div style="margin-bottom:8px;">
+                    <label style="font-size:0.7rem; color:var(--neon-blue);">Açık Kalma (Sn)</label>
+                    <input type="number" id="auto-wait-${id}" value="${door.WaitTime}" min="0" max="30" style="padding:6px;" />
+                </div>
+                
+                <label style="font-size:0.7rem; color:var(--neon-blue);">GEÇİŞ SENSÖRLERİ:</label>
+                <div class="sensor-grid">
+                    <label class="checkbox-item"><input type="checkbox" id="sens-entry-free-${id}" ${door.Access.EntryFree ? 'checked' : ''} /> Serbest Giriş</label>
+                    <label class="checkbox-item"><input type="checkbox" id="sens-entry-auth-${id}" ${door.Access.EntryAuth ? 'checked' : ''} /> Yetkili Giriş</label>
+                    <label class="checkbox-item"><input type="checkbox" id="sens-exit-free-${id}" ${door.Access.ExitFree ? 'checked' : ''} /> Serbest Çıkış</label>
+                    <label class="checkbox-item"><input type="checkbox" id="sens-exit-auth-${id}" ${door.Access.ExitAuth ? 'checked' : ''} /> Yetkili Çıkış</label>
+                </div>`;
+                break;
+
+            case 2: // MANUEL MOD
+                html += `
+                <strong style="display:block; text-align:center; margin-bottom:5px; color:var(--neon-orange);">MANUEL KONTROL</strong>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:8px;">
+                    <button class="btn-primary" onclick="controlDoor(${id}, 'OPEN')" style="font-size:0.85rem;"><i class="fas fa-door-open"></i> AÇ</button>
+                    <button class="btn-primary" onclick="controlDoor(${id}, 'CLOSE')" style="font-size:0.85rem; border-color:var(--neon-red); color:var(--neon-red);"><i class="fas fa-door-closed"></i> KAPAT</button>
+                </div>`;
+                break;
+
+            case 3: // SERBEST MOD
+                html += `<div style="text-align:center; padding:10px;"><i class="fas fa-hand-paper" style="font-size:2rem; color:var(--neon-green); margin-bottom:10px;"></i><p style="margin:0; color:var(--neon-green);">SERBEST MOD</p><p style="font-size:0.8rem; color:#ccc;">Ayar yok. Kapı serbest.</p></div>`;
+                break;
+
+            case 4: // PASİF MOD
+                html += `
+                <strong style="display:block; text-align:center; margin-bottom:5px; color:var(--neon-red);">PASİF DURUMU</strong>
+                <label style="font-size:0.7rem; color:var(--neon-blue);">Kapı Konumu:</label>
+                <select id="passive-select-${id}" style="margin-bottom:0; padding:6px;">
+                    <option value="OPEN" ${door.PassiveState === 'OPEN' ? 'selected' : ''}>SÜREKLİ AÇIK</option>
+                    <option value="CLOSED" ${door.PassiveState === 'CLOSED' ? 'selected' : ''}>SÜREKLİ KAPALI</option>
+                </select>`;
+                break;
+
+            case 5: // TEST MODU
+                html += `
+                <strong style="display:block; text-align:center; margin-bottom:5px; color:var(--neon-purple);">TEST PARAMETRELERİ</strong>
+                <div style="display:flex; gap:6px;">
+                    <div style="flex:1">
+                        <label style="font-size:0.7rem; color:var(--neon-blue);">Açık (Sn)</label>
+                        <input type="number" id="test-open-${id}" value="${door.TestCycle ? door.TestCycle.OpenTime : 5}" style="padding:6px;" />
+                    </div>
+                    <div style="flex:1">
+                        <label style="font-size:0.7rem; color:var(--neon-blue);">Kapalı (Sn)</label>
+                        <input type="number" id="test-close-${id}" value="${door.TestCycle ? door.TestCycle.CloseTime : 5}" style="padding:6px;" />
+                    </div>
+                </div>`;
+                break;
+        }
+
+        // SADECE MOD 2 ve 3 HARİCİNDE KAYDET BUTONU GÖSTER
+        if(mode !== 2 && mode !== 3){
+            html += `<button class="btn-success" style="width:100%; margin-top:10px; font-size:0.85rem;" onclick="applySettings(${id})"><i class="fas fa-save"></i> AYARLARI KAYDET</button></div>`;
+        } else {
+            html += `</div>`;
+        }
+        
+        return html;
+    }
+        
+    function updateMgmtTargetSelect(){
+        const type = document.getElementById('mgmt-target-type').value;
+        const targetSelect = document.getElementById('mgmt-target-id');
+        
+        // Listeyi temizle
+        targetSelect.innerHTML = '';
+
+        const reportArea = document.getElementById('report-buttons-area');
+        const groupDashboard = document.getElementById('group-action-dashboard');
+
+        if(type === 'door'){
+            globalDoorsData.forEach(d => { 
+                let opt = document.createElement('option'); 
+                opt.value = d.DoorID; 
+                opt.innerText = d.DoorName; 
+                targetSelect.appendChild(opt); 
+            });
+            
+            if(reportArea) reportArea.style.display = 'block';
+            if(groupDashboard) groupDashboard.style.display = 'none';
+
+        } else if(type === 'group'){
+            const groups = [...new Set(globalDoorsData.map(d => d.GroupName))];
+            
+            groups.forEach(g => { 
+                let opt = document.createElement('option'); 
+                opt.value = g; 
+                opt.innerText = g; 
+                targetSelect.appendChild(opt); 
+            });
+            
+            if(reportArea) reportArea.style.display = 'block';
+            
+            renderGroupDashboard();
+
+        } else {
+            targetSelect.innerHTML = '<option value="all">Tümü</option>';
+            
+            if(reportArea) reportArea.style.display = 'none';
+            if(groupDashboard) groupDashboard.style.display = 'none';
+        }
+    }
+    
+
+    function updateAllDoorStatuses(){
+        const filterType = document.getElementById('mgmt-target-type').value;
+        const filterValue = document.getElementById('mgmt-target-id').value;
+        const list = document.getElementById('door-list');
+        list.innerHTML = '';
+
+        // grup dashboard kontrolü
+        if(filterType === 'group'){ 
+            currentSelectedGroup = filterValue; 
+            renderGroupDashboard(); 
+        } else { 
+            const gad = document.getElementById('group-action-dashboard'); 
+            if(gad) gad.style.display = 'none'; 
+            currentSelectedGroup = null; 
+        }
+
+        globalDoorsData.forEach(d => {
+            let show=false;
+            if(filterType === 'all') show=true;
+            else if(filterType === 'group' && d.GroupName === filterValue) show=true;
+            else if(filterType === 'door' && d.DoorID.toString() === filterValue) show=true;
+            if(!show) return;
+
+            let modeClass='', iconClass='';
+            switch(d.Mode){
+                case 1: modeClass='mode-auto'; iconClass='fa-robot'; break;
+                case 2: modeClass='mode-manual'; iconClass='fa-hand-paper'; break;
+                case 3: modeClass='mode-free'; iconClass='fa-door-open'; break;
+                case 4: modeClass='mode-passive'; iconClass='fa-power-off'; break;
+                case 5: modeClass='mode-test'; iconClass='fa-tools'; break;
+            }
+
+            const card = document.createElement('div'); 
+            card.className = `door-card ${modeClass}`;
+            if(!d.Online) card.style.opacity = '0.6';
+
+            // HTML stringini template literal ile oluşturuyoruz
+            let html = `
+                <div class="door-header">
+                    <div><span class="door-name">${d.DoorName}</span><span class="door-sub" style="display:block;font-size:0.8rem;color:var(--text-muted)">ID: ${d.DoorID} | ${d.GroupName}</span></div>
+                    <i class="fas ${iconClass}" style="font-size:1.4rem; color:rgba(255,255,255,0.5);"></i>
+                </div>
+                <div class="status-icon-container"><i class="fas ${iconClass}"></i></div>
+                <div class="status-text-big">${DOOR_MODES[d.Mode]}</div>
+                ${!d.Online ? '<div style="text-align:center; color:var(--neon-red);">(OFFLINE)</div>' : '' }
+            `;
+
+            if(currentRoleID >= 2 && d.Online){
+                html += getSettingsPanelHTML(d);
+                html += `<div style="margin-top:10px; border-top:1px solid rgba(255,255,255,0.06); padding-top:8px;">
+                            <label style="font-size:0.8rem; color:#aaa;">MODU DEĞİŞTİR:</label>
+                            <select onchange="changeDoorMode(${d.DoorID}, this.value)" style="width:100%; padding:8px; margin-top:6px;">
+                                ${Object.entries(DOOR_MODES).map(([k,v])=>`<option value="${k}" ${k==d.Mode?'selected':''}>${v}</option>`).join('')}
+                            </select>
+                         </div>`;
+            }
+            card.innerHTML = html;
+            list.appendChild(card);
+        });
+    }
+
+    // *** DEĞİŞİKLİK BURADA: localStorage -> sessionStorage ***
+    async function changeDoorMode(id, val){
+        const newMode = parseInt(val);
+        const token = sessionStorage.getItem('token');
+
+        if(!token) {
+            alert("Oturum süresi dolmuş. Lütfen tekrar giriş yapın.");
+            return switchPanel('login');
+        }
+
+        try {
+            const res = await fetch(`${API_BASE_URL}/api/doors/${id}/settings`, { // Düzeltilmiş URL
+                method: 'PUT',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + token 
+                },
+                body: JSON.stringify({ 
+                    Mode: newMode 
+                })
+            });
+
+            const data = await res.json();
+
+            if(data.status === 'success'){
+                fetchDoorsData();
+            } else {
+                alert(data.message || 'Mod değiştirme başarısız.');
+                fetchDoorsData(); 
+            }
+
+        } catch(err){
+            console.error("Mod Değiştirme Hatası:", err);
+            alert("Sunucu hatası.");
+            fetchDoorsData(); 
+        }
+    }
+
+    // Scheduler UI dynamics
+    function updateSchedulerSettingsUI(){
+        const mode = parseInt(document.getElementById('sched-mode').value);
+        const container = document.getElementById('sched-dynamic-settings');
+        let html = '';
+        switch(mode){
+            case 1:
+                html = `<div class="settings-panel"><strong style="color:var(--neon-blue)">OTOMATİK AYARLAR</strong>
+                <div style="display:flex; gap:8px; margin-top:8px;">
+                    <input type="number" id="sched-auto-open" placeholder="Açma Hızı" value="50" />
+                    <input type="number" id="sched-auto-close" placeholder="Kapama Hızı" value="50" />
+                    <input type="number" id="sched-auto-wait" placeholder="Bekleme (sn)" value="5" />
+                </div>
+                <div class="sensor-grid" style="margin-top:8px;">
+                    <label class="checkbox-item"><input type="checkbox" id="sched-sens-1" checked /> Serbest Gir</label>
+                    <label class="checkbox-item"><input type="checkbox" id="sched-sens-2" checked /> Yetkili Gir</label>
+                    <label class="checkbox-item"><input type="checkbox" id="sched-sens-3" checked /> Serbest Çık</label>
+                    <label class="checkbox-item"><input type="checkbox" id="sched-sens-4" checked /> Yetkili Çık</label>
+                </div></div>`;
+                break;
+            case 4:
+                html = `<div class="settings-panel"><strong style="color:var(--neon-red)">PASİF DURUMU</strong><select id="sched-passive-state" style="margin-top:6px; padding:8px;"><option value="CLOSED">SÜREKLİ KAPALI</option><option value="OPEN">SÜREKLİ AÇIK</option></select></div>`;
+                break;
+            case 5:
+                html = `<div class="settings-panel"><strong style="color:var(--neon-purple)">TEST DÖNGÜSÜ</strong><div style="display:flex; gap:8px; margin-top:8px;"><input type="number" id="sched-test-open" placeholder="Açık Süre (sn)" value="5" /><input type="number" id="sched-test-close" placeholder="Kapalı Süre (sn)" value="5" /></div></div>`;
+                break;
+            default:
+                html = `<div style="padding:10px; color:#aaa; font-size:0.9rem;">Bu mod için ek ayar gerekmez.</div>`;
+        }
+        container.innerHTML = html;
+    }
+
+    function updateTargetSelect(){
+        const type = document.getElementById('sched-target-type').value;
+        const targetSelect = document.getElementById('sched-target-id');
+        
+        targetSelect.innerHTML = '';
+
+        if(type === 'door'){
+            globalDoorsData.forEach(door => { 
+                const opt = document.createElement('option'); 
+                opt.value = door.DoorID; 
+                opt.innerText = door.DoorName; 
+                targetSelect.appendChild(opt); 
+            });
+        } else {
+            const groups = [...new Set(globalDoorsData.map(d => d.GroupName))];
+            groups.forEach(g => { 
+                const opt = document.createElement('option'); 
+                opt.value = g; 
+                opt.innerText = g; 
+                targetSelect.appendChild(opt); 
+            });
+        }
+    }
+
+    function toggleRecurrenceUI(){
+        const recurType = document.getElementById('sched-recur-type').value;
+        const stdDates = document.getElementById('sched-standard-dates');
+        const recurOpts = document.getElementById('sched-recurrence-options');
+        const daySelect = document.getElementById('sched-recur-day-week');
+        const dayInput = document.getElementById('sched-recur-day-month');
+        
+        if(recurType === 'none'){ 
+            stdDates.style.display='flex'; 
+            recurOpts.style.display='none'; 
+        } else { 
+            stdDates.style.display='none'; 
+            recurOpts.style.display='flex'; 
+            if(recurType==='weekly'){ 
+                daySelect.style.display='block'; 
+                dayInput.style.display='none'; 
+            } else { 
+                daySelect.style.display='none'; 
+                dayInput.style.display='block'; 
+            } 
+        }
+    }
+
+    // *** DEĞİŞİKLİK BURADA: localStorage -> sessionStorage ***
+    async function addSchedule(){
+        const type = document.getElementById('sched-target-type').value; 
+        const target = document.getElementById('sched-target-id').value; 
+        const mode = parseInt(document.getElementById('sched-mode').value);
+        const recurType = document.getElementById('sched-recur-type').value;
+        
+        let payload = {
+            targetType: type,
+            targetId: target,
+            mode: mode,
+            recurrenceType: recurType
+        };
+
+        let timeString = ""; 
+
+        if(recurType === 'none'){
+            const startVal = document.getElementById('sched-start').value;
+            const endVal = document.getElementById('sched-end').value;
+            
+            if(!startVal || !endVal) return alert("Lütfen başlangıç ve bitiş tarihlerini seçiniz.");
+            
+            payload.startTime = startVal;
+            payload.endTime = endVal;
+            
+            timeString = `${startVal.replace('T',' ')} → ${endVal.replace('T',' ')}`;
+        } else {
+            const tStart = document.getElementById('sched-time-start').value;
+            const tEnd = document.getElementById('sched-time-end').value;
+            
+            if(!tStart || !tEnd) return alert("Lütfen saat aralığını giriniz.");
+            
+            payload.startTime = tStart; 
+            payload.endTime = tEnd;      
+            
+            let dayStr="";
+            if(recurType === 'weekly'){ 
+                const daySel = document.getElementById('sched-recur-day-week'); 
+                payload.recurrenceValue = daySel.value; 
+                dayStr = "Her " + daySel.options[daySel.selectedIndex].text; 
+            } else { 
+                const dM = document.getElementById('sched-recur-day-month').value; 
+                if(!dM) return alert("Ayın gününü giriniz."); 
+                payload.recurrenceValue = dM;
+                dayStr = `Her ayın ${dM}. günü`; 
+            }
+            timeString = `${dayStr} | ${tStart} - ${tEnd}`;
+        }
+
+        const token = sessionStorage.getItem('token');
+        if(!token) return alert("Oturum hatası. Lütfen giriş yapın.");
+
+        try {
+            const res = await fetch(`${API_BASE_URL}/api/scheduler/add`, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + token
+                },
+                body: JSON.stringify(payload)
+            });
+
+            const data = await res.json();
+
+            if(data.status === 'success'){
+                const newScheduleId = data.id || 0; 
+
+                const list = document.getElementById('schedule-list');
+                const cardId = `sched-card-${type}-${String(target).replace(/\s+/g,'-')}`;
+                let card = document.getElementById(cardId);
+                
+                const itemHTML = `
+                <div id="sched-item-${newScheduleId}" style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid rgba(255,255,255,0.06); padding:8px 0; margin-top:5px;">
+                    <div>
+                        <span style="color:#ddd; font-size:0.9rem; display:block;">
+                            <i class="far fa-clock" style="color:var(--neon-blue)"></i> ${timeString}
+                        </span>
+                        <div style="font-size:0.8rem; color:#aaa; margin-top:4px;">${DOOR_MODES[mode]}</div>
+                    </div>
+                    <button class="btn-danger" style="padding:4px 8px;" onclick="deleteSchedule(${newScheduleId})">X</button>
+                </div>`;
+
+                if(!card){
+                    card = document.createElement('div'); 
+                    card.id = cardId; 
+                    card.className = 'door-card mode-auto';
+                    card.innerHTML = `<h3 style="font-size:1rem; margin:0 0 8px 0;">${type.toUpperCase()}: <span style="color:white">${target}</span></h3><div class="schedule-entries">${itemHTML}</div>`;
+                    list.appendChild(card);
+                } else {
+                    card.querySelector('.schedule-entries').insertAdjacentHTML('beforeend', itemHTML);
+                }
+
+                alert("Zamanlama Başarıyla Kaydedildi!");
+            } else {
+                alert(data.message || 'Zamanlama eklenemedi.');
+            }
+
+        } catch(err){
+            console.error("Scheduler Hatası:", err);
+            alert("Sunucu hatası.");
+        }
+    }
+
+    // *** DEĞİŞİKLİK BURADA: localStorage -> sessionStorage ***
+    async function deleteSchedule(id){
+        if(!confirm("Bu zamanlamayı silmek istediğinize emin misiniz?")) return;
+
+        const token = sessionStorage.getItem('token');
+        try {
+            const res = await fetch(`${API_BASE_URL}/api/scheduler/delete/${id}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': 'Bearer ' + token }
+            });
+            const data = await res.json();
+            
+            if(data.status === 'success'){
+                const el = document.getElementById(`sched-item-${id}`);
+                if(el) el.remove();
+                alert("Silindi.");
+            } else {
+                alert("Silinemedi: " + data.message);
+            }
+        } catch(err) { console.error(err); alert("Hata."); }
+    }
+
+    // Group dashboard & bulk UI (PRO)
+    function renderGroupDashboard(){
+        const dashboard = document.getElementById('group-action-dashboard');
+        const groupName = document.getElementById('mgmt-target-id')?.value || null;
+        if(!groupName || groupName === 'all'){ if(dashboard) dashboard.style.display='none'; return; }
+        if(dashboard) dashboard.style.display='block';
+        document.getElementById('selected-group-title').innerText = groupName;
+        const membersList = document.getElementById('group-members-container');
+        membersList.innerHTML = '';
+        const doorsInGroup = globalDoorsData.filter(d => d.GroupName === groupName);
+        doorsInGroup.forEach(d=>{
+            let statusColor = d.Online ? 'var(--neon-green)' : 'var(--neon-red)';
+            let item = document.createElement('div'); item.className='mini-door-item';
+            item.innerHTML = `<span style="display:flex; align-items:center; gap:10px;"><i class="fas fa-circle" style="font-size:0.6rem; color:${statusColor}"></i> ${d.DoorName}</span><span style="color:var(--text-muted); font-size:0.8rem;">${DOOR_MODES[d.Mode]}</span>`;
+            membersList.appendChild(item);
+        });
+        updateGroupBulkSettingsUI();
+    }
+
+    function updateGroupBulkSettingsUI(){
+        const mode = parseInt(document.getElementById('grp-bulk-mode-select').value);
+        const container = document.getElementById('grp-bulk-dynamic-settings');
+        let html = '';
+        switch(mode){
+            case 1:
+                html = `<div class="settings-panel" style="margin-top:0;"><div style="display:flex; gap:8px; margin-bottom:8px;"><div style="flex:1"><label style="font-size:0.8rem;color:var(--neon-blue)">Açma Hızı</label><input id="grp-auto-open" type="number" value="60" style="padding:8px;" /></div><div style="flex:1"><label style="font-size:0.8rem;color:var(--neon-blue)">Kapama Hızı</label><input id="grp-auto-close" type="number" value="40" style="padding:8px;" /></div></div><div style="margin-bottom:8px;"><label style="font-size:0.8rem;color:var(--neon-blue)">Açık Kalma (Sn)</label><input id="grp-auto-wait" type="number" value="5" style="padding:8px;" /></div><label style="font-size:0.8rem;color:var(--neon-blue)">SENSÖRLER:</label><div class="sensor-grid"><label class="checkbox-item"><input id="grp-sens-1" type="checkbox" checked /> Serbest Gir</label><label class="checkbox-item"><input id="grp-sens-2" type="checkbox" checked /> Yetkili Gir</label><label class="checkbox-item"><input id="grp-sens-3" type="checkbox" checked /> Serbest Çık</label><label class="checkbox-item"><input id="grp-sens-4" type="checkbox" checked /> Yetkili Çık</label></div></div>`;
+                break;
+            case 2:
+                html = `<div style="text-align:center; padding:18px; color:#aaa;"><i class="fas fa-hand-paper" style="font-size:2rem;"></i><br>Kapılar manuel kontrole alınacak.</div>`;
+                break;
+            case 3:
+                html = `<div style="text-align:center; padding:18px; color:var(--neon-green);"><i class="fas fa-door-open" style="font-size:2rem;"></i><br>Kapılar serbest bırakılacak.</div>`;
+                break;
+            case 4:
+                html = `<div class="settings-panel"><label style="font-size:0.8rem; color:var(--neon-red)">PASİF KONUMU:</label><select id="grp-passive-state" style="margin-top:6px; padding:8px;"><option value="CLOSED">SÜREKLİ KAPALI</option><option value="OPEN">SÜREKLİ AÇIK</option></select></div>`;
+                break;
+            case 5:
+                html = `<div class="settings-panel"><div style="display:flex; gap:8px;"><div style="flex:1"><label style="font-size:0.8rem;color:var(--neon-purple)">Açık Süre (sn)</label><input id="grp-test-open" type="number" value="5" style="padding:8px;" /></div><div style="flex:1"><label style="font-size:0.8rem;color:var(--neon-purple)">Kapalı Süre (sn)</label><input id="grp-test-close" type="number" value="5" style="padding:8px;" /></div></div></div>`;
+                break;
+        }
+        container.innerHTML = html;
+    }
+
+    // *** DEĞİŞİKLİK BURADA: localStorage -> sessionStorage ***
+    async function applyGroupBulkActionWithSettings(){
+        const groupName = currentSelectedGroup;
+        if(!groupName) return alert('Lütfen işlem yapılacak grubu seçin.');
+        
+        const token = sessionStorage.getItem('token');
+        if(!token) return alert("Oturum hatası. Lütfen giriş yapın.");
+
+        const mode = parseInt(document.getElementById('grp-bulk-mode-select').value);
+
+        if(!confirm(`"${groupName}" grubundaki TÜM kapılar güncellenecek.\nBu işlem geri alınamaz. Onaylıyor musunuz?`)) return;
+
+        let settingsPayload = {};
+
+        switch(mode){
+            case 1: 
+                settingsPayload = {
+                    OpenSpeed: document.getElementById('grp-auto-open').value,
+                    CloseSpeed: document.getElementById('grp-auto-close').value,
+                    WaitTime: document.getElementById('grp-auto-wait').value,
+                    Access: {
+                        EntryFree: document.getElementById('grp-sens-1').checked,
+                        EntryAuth: document.getElementById('grp-sens-2').checked,
+                        ExitFree: document.getElementById('grp-sens-3').checked,
+                        ExitAuth: document.getElementById('grp-sens-4').checked
+                    }
+                };
+                break;
+            case 4: 
+                settingsPayload = {
+                    PassiveState: document.getElementById('grp-passive-state').value
+                };
+                break;
+            case 5: 
+                settingsPayload = {
+                    TestCycle: {
+                        OpenTime: document.getElementById('grp-test-open').value,
+                        CloseTime: document.getElementById('grp-test-close').value
+                    }
+                };
+                break;
+        }
+
+        try {
+            const res = await fetch(`${API_BASE_URL}/api/groups/apply-settings`, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + token
+                },
+                body: JSON.stringify({
+                    groupName: groupName,
+                    targetMode: mode,
+                    settings: settingsPayload
+                })
+            });
+
+            const data = await res.json();
+
+            if(data.status === 'success'){
+                alert(`İşlem Başarılı!\n"${groupName}" grubundaki kapılar güncellendi.`);
+                fetchDoorsData(); 
+            } else {
+                alert(data.message || 'Toplu güncelleme sırasında bir hata oluştu.');
+            }
+
+        } catch(err){
+            console.error("Bulk Action Hatası:", err);
+            alert("Sunucuya ulaşılamadı. Ayarlar kaydedilemedi.");
+        }
+    }
+
+    // Grup yönetimi UI (PRO)
+    function renderGroupManagementUI(){
+        const groupSelect = document.getElementById('group-select-action');
+        const existingGroups = [...new Set(globalDoorsData.map(d=>d.GroupName))].filter(g=>g!=='Genel');
+        
+        while(groupSelect.options.length>1) groupSelect.remove(1);
+        
+        existingGroups.forEach(g=>{ const opt=document.createElement('option'); opt.value=g; opt.innerText=`GRUP: ${g}`; groupSelect.appendChild(opt); });
+        
+        const selectionContainer = document.getElementById('group-selection-list');
+        selectionContainer.innerHTML = '';
+        
+        globalDoorsData.forEach(door=>{
+            const item = document.createElement('label'); item.className='checkbox-item'; item.style.justifyContent='space-between';
+            const currentGroupBadge = `<span style="font-size:0.7rem; color:var(--text-muted); border:1px solid #555; padding:2px 6px; border-radius:4px;">${door.GroupName}</span>`;
+            item.innerHTML = `<span>${door.DoorName} (ID: ${door.DoorID})</span><div style="display:flex; align-items:center; gap:10px;">${currentGroupBadge}<input type="checkbox" class="door-group-checkbox" value="${door.DoorID}" style="width:18px; height:18px;" /></div>`;
+            selectionContainer.appendChild(item);
+        });
+        
+        renderExistingGroups(); 
+        toggleGroupInput();
+    }
+
+    function toggleGroupInput(){
+        const val = document.getElementById('group-select-action').value;
+        const inputContainer = document.getElementById('new-group-input-container');
+        if(val === 'new'){ inputContainer.style.display='block'; } else { inputContainer.style.display='none'; }
+    }
+
+    function renderExistingGroups(){
+        const container = document.getElementById('existing-groups-list'); container.innerHTML = '';
+        const groups = [...new Set(globalDoorsData.map(d=>d.GroupName))];
+        groups.forEach(groupName=>{
+            const doorsInGroup = globalDoorsData.filter(d=>d.GroupName===groupName);
+            const card = document.createElement('div'); card.className='door-card'; card.style.width='100%'; card.style.borderColor='var(--neon-purple)';
+            let doorsListHTML = '';
+            if(groupName !== 'Genel') doorsListHTML = doorsInGroup.map(d=>`<li style="color:#ddd; font-size:0.85rem; display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">${d.DoorName}<i class="fas fa-times-circle" style="color:var(--neon-red); cursor:pointer;" onclick="removeDoorFromGroup(${d.DoorID})" title="Gruptan Çıkar"></i></li>`).join('');
+            else doorsListHTML = doorsInGroup.map(d=>`<li style="color:#ddd; font-size:0.85rem;">${d.DoorName}</li>`).join('');
+            const dissolveButton = groupName !== 'Genel' ? `<div class="card-actions" style="margin-top:10px;"><button class="btn-card-action" onclick="dissolveGroup('${groupName}')" style="border-color:var(--neon-red); color:var(--neon-red);"><i class="fas fa-trash"></i> GRUBU BOZ</button></div>` : '';
+            card.innerHTML = `<div class="door-header"><span class="door-name" style="font-size:1.05rem;">${groupName}</span><span style="font-size:0.85rem; color:var(--neon-blue);">${doorsInGroup.length} Kapı</span></div><ul style="padding-left:18px; margin:10px 0;">${doorsListHTML}</ul>${dissolveButton}`;
+            container.appendChild(card);
+        });
+    }
+
+    // *** DEĞİŞİKLİK BURADA: localStorage -> sessionStorage ***
+    async function saveGroupChanges(){
+        const action = document.getElementById('group-select-action').value;
+        let groupName = "";
+
+        if(action === 'new'){ 
+            groupName = document.getElementById('new-group-name').value.trim(); 
+            if(!groupName) return alert("Lütfen geçerli bir grup adı giriniz!"); 
+        } else {
+            groupName = action;
+        }
+
+        const checkboxes = document.querySelectorAll('.door-group-checkbox:checked');
+        if(checkboxes.length === 0) return alert("Lütfen gruba eklenecek en az bir kapı seçiniz!");
+
+        const selectedIds = Array.from(checkboxes).map(cb => parseInt(cb.value));
+
+        const conflicts = [];
+        selectedIds.forEach(id => { 
+            const door = globalDoorsData.find(d => d.DoorID === id); 
+            if(door && door.GroupName && door.GroupName !== 'Genel' && door.GroupName !== groupName) {
+                conflicts.push(`${door.DoorName} (Mevcut Grup: ${door.GroupName})`);
+            }
+        });
+
+        if(conflicts.length > 0) {
+            return alert(`DİKKAT! Seçilen bazı kapılar zaten başka gruplara ait:\n\n- ${conflicts.join('\n- ')}\n\nLütfen önce bu kapıları eski gruplarından çıkarın.`);
+        }
+
+        const token = sessionStorage.getItem('token');
+        if(!token) return alert("Oturum hatası.");
+
+        try {
+            const res = await fetch(`${API_BASE_URL}/api/groups/save`, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + token 
+                },
+                body: JSON.stringify({
+                    groupName: groupName,
+                    doorIds: selectedIds
+                })
+            });
+
+            const data = await res.json();
+
+            if(data.status === 'success'){
+                alert(`İşlem Başarılı! "${groupName}" grubu güncellendi.`);
+
+                if(action === 'new') {
+                    document.getElementById('new-group-name').value = '';
+                    document.getElementById('group-select-action').value = 'new';
+                }
+                
+                toggleGroupInput();
+
+                fetchDoorsData().then(() => {
+                    renderGroupManagementUI();
+                });
+
+            } else {
+                alert(data.message || 'Grup kaydetme başarısız.');
+            }
+
+        } catch(err){
+            console.error("Grup Kayıt Hatası:", err);
+            alert("Sunucu hatası.");
+        }
+    }
+
+    // *** DEĞİŞİKLİK BURADA: localStorage -> sessionStorage ***
+    async function removeDoorFromGroup(doorId){
+        if(!confirm('Bu kapıyı gruptan çıkarmak istediğinize emin misiniz?\nKapı otomatik olarak "Genel" grubuna taşınacaktır.')) return;
+
+        const token = sessionStorage.getItem('token');
+        if(!token) return alert("Oturum hatası. Lütfen giriş yapın.");
+
+        try {
+            const res = await fetch(`${API_BASE_URL}/api/groups/remove-door`, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + token
+                },
+                body: JSON.stringify({ doorId: doorId })
+            });
+
+            const data = await res.json();
+
+            if(data.status === 'success'){
+                fetchDoorsData().then(() => {
+                    renderGroupManagementUI();
+                });
+            } else {
+                alert(data.message || 'Kapı gruptan çıkarılamadı.');
+            }
+
+        } catch(err){
+            console.error("Gruptan Çıkarma Hatası:", err);
+            alert("Sunucu hatası.");
+        }
+    }
+
+    // *** DEĞİŞİKLİK BURADA: localStorage -> sessionStorage ***
+    async function dissolveGroup(groupName){
+        if(!confirm(`"${groupName}" grubunu kalıcı olarak silmek istiyor musunuz?\n\nBu gruptaki tüm kapılar otomatik olarak 'Genel' grubuna aktarılacaktır.`)) return;
+
+        const token = sessionStorage.getItem('token');
+        if(!token) return alert("Oturum hatası. Lütfen giriş yapın.");
+
+        try {
+            const res = await fetch(`${API_BASE_URL}/api/groups/delete`, {
+                method: 'POST', 
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + token
+                },
+                body: JSON.stringify({ groupName: groupName })
+            });
+
+            const data = await res.json();
+
+            if(data.status === 'success'){
+                alert(`"${groupName}" grubu başarıyla silindi ve kapılar 'Genel' grubuna taşındı.`);
+                fetchDoorsData().then(() => {
+                    renderGroupManagementUI();
+                });
+            } else {
+                alert(data.message || 'Grup silme işlemi başarısız.');
+            }
+
+        } catch(err){
+            console.error("Grup Silme Hatası:", err);
+            alert("Sunucu hatası.");
+        }
+    }
+
+    
+    // Maintenance panel functions (PRO)
+    function renderMaintenancePanel(){
+        const list = document.getElementById('maintenance-door-list'); 
+        list.innerHTML = '';
+
+        globalDoorsData.forEach(d => {
+            const card = document.createElement('div'); 
+            card.className = 'door-card'; 
+            card.style.borderColor = 'var(--neon-orange)'; 
+            card.style.width = '300px';
+
+            let lastMaintDate = "Kayıt Yok";
+            
+            if(d.MaintenanceLogs && d.MaintenanceLogs.length > 0){ 
+                const sorted = [...d.MaintenanceLogs].sort((a,b) => new Date(b.date) - new Date(a.date)); 
+                lastMaintDate = sorted[0].date.replace('T',' '); 
+            }
+
+            const safeDoorName = d.DoorName.replace(/'/g, "\\'");
+
+            let html = `
+                <div class="door-header">
+                    <div>
+                        <span class="door-name">${d.DoorName}</span>
+                        <span class="door-sub" style="display:block;font-size:0.85rem;color:var(--text-muted)">ID: ${d.DoorID} | ${d.GroupName}</span>
+                    </div>
+                    <i class="fas fa-tools" style="font-size:1.2rem; color:var(--neon-orange)"></i>
+                </div>
+                <div style="text-align:center; margin:14px 0;">
+                    <span style="display:block; color:#aaa; font-size:0.9rem;">SON BAKIM TARİHİ</span>
+                    <span style="font-size:1rem; color:white;">${lastMaintDate}</span>
+                </div>
+                <div class="card-actions">
+                    <button class="btn-card-action" style="border-color:var(--neon-orange); color:var(--neon-orange);" onclick="viewLogs(${d.DoorID}, '${safeDoorName}')">
+                        <i class="fas fa-file-medical"></i> KAYITLARI YÖNET
+                    </button>
+                </div>`;
+                
+            card.innerHTML = html; 
+            list.appendChild(card);
+        });
+    }
+
+    function viewLogs(doorId, doorName){
+        const logModal = document.getElementById('log-modal'); 
+        const logContent = document.getElementById('log-content'); 
+        const door = globalDoorsData.find(d=>d.DoorID===doorId);
+        
+        if(!door) return alert('Kapı bulunamadı.');
+        
+        let html = `<div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--neon-blue); padding-bottom:8px; margin-bottom:12px;"><h3 style="margin:0;"><i class="fas fa-tools"></i> BAKIM KAYITLARI: <span style="color:var(--neon-blue)">${doorName}</span></h3><div style="display:flex; gap:8px;"><button class="btn-success" onclick="downloadMaintenancePDF(${doorId}, '${doorName.replace(/'/g,"\\'")}')"><i class="fas fa-file-pdf"></i> PDF</button><button class="btn-primary" onclick="downloadMaintenanceXML(${doorId}, '${doorName.replace(/'/g,"\\'")}')"><i class="fas fa-file-code"></i> XML</button></div></div>
+            <div class="settings-panel" style="background:rgba(255,255,255,0.03); border:1px solid #444;"><strong style="color:var(--neon-green)">+ YENİ BAKIM KAYDI EKLE</strong>
+            <div style="display:grid; grid-template-columns: 1fr 1fr 1fr auto; gap:8px; margin-top:10px; align-items:center;">
+                <input type="text" id="maint-person" placeholder="Bakım Yapan Kişi" />
+                <input type="datetime-local" id="maint-date" value="${getLocalISOString()}" />
+                <select id="maint-type"><option>Rutin Kontrol</option><option>Arıza Onarım</option><option>Parça Değişimi</option></select>
+                <button class="btn-primary" onclick="addMaintenanceRecord(${doorId})">EKLE</button>
+            </div></div>
+            <div style="margin-top:14px;"><h4 style="color:#aaa;">GEÇMİŞ KAYITLAR</h4>${renderMaintenanceList(door.MaintenanceLogs)}</div>`;
+        logContent.innerHTML = html; logModal.style.display='flex';
+    }
+
+    function renderMaintenanceList(logs){
+        if(!logs || logs.length===0) return '<div style="text-align:center; padding:20px; color:#666;">Henüz kayıt bulunmamaktadır.</div>';
+        logs.sort((a,b)=> new Date(b.date)-new Date(a.date));
+        let tableHTML = `<table style="width:100%; border-collapse:collapse; font-size:0.9rem;"><thead><tr><th style="padding:8px; border-bottom:1px solid rgba(255,255,255,0.06);">Tarih</th><th style="padding:8px; border-bottom:1px solid rgba(255,255,255,0.06);">Tür</th><th style="padding:8px; border-bottom:1px solid rgba(255,255,255,0.06);">Personel</th></tr></thead><tbody>`;
+        logs.forEach(log=>{ let color = log.type.includes('Arıza') ? 'var(--neon-red)' : 'var(--neon-green)'; tableHTML += `<tr><td style="padding:8px;">${log.date.replace('T',' ')}</td><td style="padding:8px;color:${color};font-weight:700;">${log.type}</td><td style="padding:8px;">${log.person}</td></tr>`; });
+        tableHTML += `</tbody></table>`; return tableHTML;
+    }
+
+    // *** DEĞİŞİKLİK BURADA: localStorage -> sessionStorage ***
+    async function addMaintenanceRecord(doorId){
+        const person = document.getElementById('maint-person').value.trim();
+        const date = document.getElementById('maint-date').value;
+        const type = document.getElementById('maint-type').value;
+
+        if(!person || !date) return alert('Lütfen tüm alanları doldurunuz.');
+
+        const token = sessionStorage.getItem('token');
+        if(!token) return alert("Oturum hatası. Lütfen giriş yapın.");
+
+        try {
+            const res = await fetch(`${API_BASE_URL}/api/maintenance/add`, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + token
+                },
+                body: JSON.stringify({
+                    doorId: doorId,
+                    person: person,
+                    date: date,
+                    type: type
+                })
+            });
+
+            const data = await res.json();
+
+            if(data.status === 'success'){
+                alert('Bakım kaydı başarıyla eklendi!');
+                await fetchDoorsData(); 
+
+                const updatedDoor = globalDoorsData.find(d => d.DoorID === doorId);
+                if(updatedDoor){
+                    viewLogs(doorId, updatedDoor.DoorName);
+                    renderMaintenancePanel();
+                }
+
+            } else {
+                alert(data.message || 'Kayıt eklenemedi.');
+            }
+
+        } catch(err){
+            console.error("Bakım Kaydı Hatası:", err);
+            alert("Sunucu hatası.");
+        }
+    }
+
+    function downloadMaintenancePDF(doorId, doorName){
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        const door = globalDoorsData.find(d=>d.DoorID===doorId);
+        if(!door || !door.MaintenanceLogs || door.MaintenanceLogs.length===0) return alert('İndirilecek kayıt bulunamadı.');
+        doc.setFontSize(16); doc.text(`KAPI BAKIM RAPORU: ${doorName}`, 14, 22);
+        doc.setFontSize(10); doc.text(`Rapor Tarihi: ${new Date().toLocaleDateString()}`, 14, 30);
+        const tableData = door.MaintenanceLogs.sort((a,b)=> new Date(b.date)-new Date(a.date)).map(l=>[l.date.replace('T',' '), l.type, l.person]);
+        doc.autoTable({ head:[['Tarih','Islem Turu','Personel']], body: tableData, startY:40, theme:'grid' });
+        doc.save(`bakim_${doorName.replace(/\s+/g,'_')}.pdf`);
+    }
+
+    function downloadMaintenanceXML(doorId, doorName){
+        const door = globalDoorsData.find(d=>d.DoorID===doorId);
+        if(!door || !door.MaintenanceLogs || door.MaintenanceLogs.length===0) return alert('İndirilecek kayıt bulunamadı.');
+        downloadXML(`bakim_${doorName.replace(/\s+/g,'_')}.xml`, 'MaintenanceLogs', door.MaintenanceLogs);
+    }
+
+    function downloadXML(filename, rootNode, dataArray){
+        let xml = '<?xml version="1.0" encoding="UTF-8"?>\n';
+        xml += `<${rootNode}>\n`;
+        dataArray.forEach(item=>{
+            xml += '  <entry>\n';
+            for(const [key,value] of Object.entries(item)){
+                let val = value;
+                if(typeof value === 'object' && value !== null) val = JSON.stringify(value);
+                xml += `    <${key}>${String(val).replace(/&/g,'&amp;').replace(/</g,'&lt;')}</${key}>\n`;
+            }
+            xml += '  </entry>\n';
+        });
+        xml += `</${rootNode}>`;
+        const blob = new Blob([xml], { type:'application/xml' });
+        const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href=url; a.download=filename; document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    }
+function downloadHistory(type) {
+    const filterType = document.getElementById('mgmt-target-type').value;
+    const filterValue = document.getElementById('mgmt-target-id').value;
+    
+    let targetName = "";
+    let logsToExport = [];
+
+    // 1. KAPI FİLTRESİ
+    if (filterType === 'door') {
+        // Seçili kapıyı bul (String/Int dönüşümüne dikkat ederek)
+        const door = globalDoorsData.find(d => d.DoorID == filterValue);
+        
+        if (!door) return alert('Lütfen geçerli bir kapı seçin.');
+        
+        targetName = door.DoorName;
+        // Eğer ModeLogs undefined ise boş dizi ata
+        logsToExport = door.ModeLogs || [];
+    } 
+    // 2. GRUP FİLTRESİ
+    else if (filterType === 'group') {
+        targetName = filterValue + "_Grubu";
+        
+        // Gruptaki tüm kapıları gez ve loglarını topla
+        globalDoorsData.forEach(d => {
+            if (d.GroupName === filterValue && d.ModeLogs && d.ModeLogs.length > 0) {
+                // Her bir log kaydına, hangi kapıya ait olduğunu belirten "DoorName" ekle
+                d.ModeLogs.forEach(log => {
+                    logsToExport.push({
+                        ...log, // Mevcut log verileri (Date, OldMode, NewMode, User)
+                        DoorName: d.DoorName // Grup raporu için kapı adı ekliyoruz
+                    });
+                });
+            }
+        });
+    } 
+    else {
+        return alert('Geçmiş indirmek için Kapı veya Grup seçin.');
+    }
+
+    // KAYIT KONTROLÜ
+    if (logsToExport.length === 0) {
+        return alert('Bu seçim için geçmiş kaydı bulunamadı.');
+    }
+
+    // TARİHE GÖRE SIRALA (Yeniden eskiye)
+    logsToExport.sort((a, b) => new Date(b.Date) - new Date(a.Date));
+
+    // DOSYA İSİM FORMATI
+    const safeFileName = `gecmis_${targetName.replace(/\s+/g, '_')}`;
+
+    // XML İNDİRME
+    if (type === 'xml') {
+        downloadXML(`${safeFileName}.xml`, 'HistoryLogs', logsToExport);
+    } 
+    // PDF İNDİRME
+    else {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+
+        // Başlık
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(16);
+        doc.text(`MOD GECMISI RAPORU: ${targetName}`, 14, 22);
+        
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(10);
+        doc.text(`Tarih: ${new Date().toLocaleDateString()}`, 14, 28);
+
+        // Tablo Başlıkları
+        const headers = [['Tarih', 'Eski Mod', 'Yeni Mod', 'Kullanici']];
+        
+        // Eğer GRUP raporu ise, en başa "Kapı Adı" sütunu ekle
+        if (filterType === 'group') {
+            headers[0].unshift('Kapi Adi');
+        }
+
+        // Tablo Verilerini Hazırla
+        const tableData = logsToExport.map(log => {
+            // Tarih formatla (T harfini boşlukla değiştir)
+            const dateStr = log.Date ? log.Date.replace('T', ' ').substring(0, 16) : '-';
+            
+            // Mod İsimlerini Al (Tanımsızsa 'Bilinmiyor' yaz)
+            const oldModeStr = DOOR_MODES[log.OldMode] || 'Bilinmiyor';
+            const newModeStr = DOOR_MODES[log.NewMode] || 'Bilinmiyor';
+
+            let row = [dateStr, oldModeStr, newModeStr, log.User];
+
+            // Grup raporuysa Kapı Adını satırın başına ekle
+            if (filterType === 'group') {
+                row.unshift(log.DoorName || '-');
+            }
+            return row;
+        });
+
+        // Tabloyu Çiz
+        doc.autoTable({
+            head: headers,
+            body: tableData,
+            startY: 36,
+            theme: 'grid',
+            styles: { fontSize: 9 },
+            headStyles: { fillColor: [41, 128, 185] } // Mavi başlık
+        });
+
+        doc.save(`${safeFileName}.pdf`);
+    }
+}
+  
+
+    // *** DEĞİŞİKLİK BURADA: localStorage -> sessionStorage ***
+    async function applySettings(doorId){
+        const token = sessionStorage.getItem('token');
+        if(!token) {
+            console.error("🔴 KRİTİK HATA: sessionStorage.getItem('token') null döndürdü. Oturum yok.");
+            return alert("Oturum hatası. Lütfen giriş yapın."); 
+        }
+
+        const door = globalDoorsData.find(d => d.DoorID === doorId);
+        if(!door) return alert("Kapı verisi bulunamadı.");
+
+        const mode = parseInt(door.Mode);
+        let settingsPayload = {};
+
+        try {
+            switch(mode){
+                case 1: 
+                    settingsPayload = {
+                        OpenSpeed: document.getElementById(`auto-open-${doorId}`).value,
+                        CloseSpeed: document.getElementById(`auto-close-${doorId}`).value,
+                        WaitTime: document.getElementById(`auto-wait-${doorId}`).value,
+                        Access: {
+                            EntryFree: document.getElementById(`sens-entry-free-${doorId}`).checked,
+                            EntryAuth: document.getElementById(`sens-entry-auth-${doorId}`).checked,
+                            ExitFree: document.getElementById(`sens-exit-free-${doorId}`).checked,
+                            ExitAuth: document.getElementById(`sens-exit-auth-${doorId}`).checked
+                        }
+                    };
+                    break;
+                case 4: 
+                    settingsPayload = {
+                        PassiveState: document.getElementById(`passive-select-${doorId}`).value
+                    };
+                    break;
+                case 5: 
+                    settingsPayload = {
+                        TestCycle: {
+                            OpenTime: document.getElementById(`test-open-${doorId}`).value,
+                            CloseTime: document.getElementById(`test-close-${doorId}`).value
+                        }
+                    };
+                    break;
+                default:
+                    return alert("Bu mod için kaydedilecek ayar bulunmuyor.");
+            }
+        } catch (e) {
+            console.error("Veri okuma hatası:", e);
+            return alert("Ayarlar okunurken bir hata oluştu. Sayfayı yenileyip tekrar deneyin.");
+        }
+
+        try {
+            const res = await fetch(`${API_BASE_URL}/api/doors/${doorId}/settings`, { 
+                method: 'PUT',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + token
+                },
+                body: JSON.stringify({
+                    Mode: mode, 
+                    ...settingsPayload
+                })
+            });
+
+            const data = await res.json();
+
+            if(data.status === 'success'){
+                alert("Ayarlar başarıyla kaydedildi!");
+                fetchDoorsData();
+            } else {
+                alert(data.message || 'Ayarlar kaydedilemedi.');
+            }
+
+        } catch(err){
+            console.error("Settings Save Error:", err);
+            alert("Sunucu hatası.");
+        }
+    }
+
+    // *** DEĞİŞİKLİK BURADA: localStorage -> sessionStorage ***
+    async function controlDoor(doorId, command){
+        const token = sessionStorage.getItem('token');
+        if(!token) return alert("Oturum hatası.");
+
+        try {
+            const res = await fetch(`${API_BASE_URL}/api/doors/${doorId}/control`, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + token
+                },
+                body: JSON.stringify({ command: command })
+            });
+
+            const data = await res.json();
+
+            if(data.status === 'success'){
+                fetchDoorsData();
+            } else {
+                alert(data.message || 'Komut uygulanamadı.');
+            }
+        } catch(err){
+            console.error("Control Error:", err);
+        }
+    }
+   // --- 1. BUTON GÖRÜNÜRLÜĞÜNÜ GARANTİ EDEN FONKSİYON ---
+function checkAdminButtonVisibility() {
+    const adminPanel = document.getElementById('superadmin-controls');
+    // Eğer element henüz yüklenmediyse işlem yapma
+    if (!adminPanel) return;
+
+    // Rol ID 3 ise (SuperAdmin) göster, değilse gizle
+    if (currentRoleID === 3) {
+        adminPanel.style.display = 'block';
+    } else {
+        adminPanel.style.display = 'none';
+    }
+}
+
+// --- 2. PENCEREYİ AÇAN FONKSİYON (Eski addNewDoorUI yerine) ---
+function addNewDoorUI() {
+    // Inputları temizle
+    document.getElementById('new-door-name-input').value = '';
+    document.getElementById('new-door-ip-input').value = '';
+    
+    // Modalı Göster
+    document.getElementById('add-door-modal').style.display = 'flex';
+}
+
+// --- 3. PENCEREYİ KAPATAN FONKSİYON ---
+function closeAddDoorModal() {
+    document.getElementById('add-door-modal').style.display = 'none';
+}
+
+// --- 4. KAYDETME İŞLEMİ (Ekrandan veriyi alıp sunucuya atar) ---
+
+async function saveNewDoorFromModal() {
+    const doorName = document.getElementById('new-door-name-input').value.trim();
+    const ipAddress = document.getElementById('new-door-ip-input').value.trim();
+
+    if (!doorName || !ipAddress) {
+        return alert("Lütfen Kapı Adı ve IP Adresi alanlarını doldurunuz.");
+    }
+
+    const ipRegex = /^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+    if (!ipRegex.test(ipAddress)) {
+        return alert("Geçersiz IP adresi formatı!");
+    }
+
+    const token = sessionStorage.getItem('token');
+    if (!token) return alert("Oturum hatası. Lütfen tekrar giriş yapın.");
+
+    try {
+        const res = await fetch(`${API_BASE_URL}/api/doors/add`, {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + token
+            },
+            body: JSON.stringify({ doorName, ipAddress })
+        });
+
+        const data = await res.json();
+
+        if (data.status === 'success') {
+            alert("✅ " + data.message);
+            closeAddDoorModal(); // Pencereyi kapat
+            
+            // 1. Verileri Sunucudan Tekrar Çek (Bekle)
+            await fetchDoorsData(); 
+
+            // 2. Grup Yönetimi Ekranını Zorla Yenile (BU SATIR EKSİKTİ)
+            renderGroupManagementUI(); 
+            
+        } else {
+            alert("❌ Hata: " + data.message);
+        }
+    } catch (err) {
+        console.error(err);
+        alert("Sunucu ile iletişim hatası.");
+    }
+}
+    // INIT (SAYFA YÜKLENİNCE ÇALIŞIR)
+window.onload = async () => {
+    const token = sessionStorage.getItem('token');
+    
+    // 1 saniyelik suni gecikme koymuyoruz, işlem biter bitmez açılacak.
+    
+    if (token) {
+        await fetchUserData(); 
+        
+        if (currentUserName) {
+            // Kullanıcı bilgisi başarılı alındıysa Dashboard'a git
+            switchPanel('dashboard');
+            fetchDoorsData();
+        } else {
+            // Token var ama kullanıcı bilgisi alınamadıysa (token bozuksa) Login'e git
+            switchPanel('login');
+        }
+    } else {
+        // Token yoksa Login'e git
+        switchPanel('login');
+    }
+
+    // İŞLEMLER BİTTİ, LOADER'I GİZLE
+    const loader = document.getElementById('app-loader');
+    if(loader) {
+        loader.style.opacity = '0'; // Yumuşak geçiş efekti
+        setTimeout(() => { loader.style.display = 'none'; }, 300); // Efekt bitince tamamen kaldır
+    }
+};
+
+</script>
+</body>
+</html>
